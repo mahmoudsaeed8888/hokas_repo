@@ -1,0 +1,36 @@
+/* Basic styles for the whole page */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+/* Style for the heading */
+h1 {
+    color: #333;
+    text-align: center;
+    padding-top: 50px;
+}
+
+/* Style for the paragraph */
+p {
+    color: #555;
+    text-align: center;
+    font-size: 18px;
+}
+
+/* Style for the hyperlink */
+a {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    font-size: 18px;
+    color: #007BFF;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
