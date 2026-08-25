@@ -46,3 +46,9 @@ $ uvicron main:app --reload --host 0.0.0.0 --port 5000
 ### POSTMAN COLLECTION 
 
 Download the POSTMAN collection from [/assets/mini-rag-app.postman_collection.json](/assets/mini-rag-app.postman_collection.json)
+
+## Install pydantic-settings==2.2.1
+```bash 
+cd src 
+pip install -r Rquirements.txt
+```
