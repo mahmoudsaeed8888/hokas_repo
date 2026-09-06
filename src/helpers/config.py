@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
  
 class Settings(BaseSettings): # settings هيورث كل حاجه من ال base settings 
 # BaseSettings : ملف بيساعدنا نقرأ ال .env + validation 
-#بيربط 3 حاجات  vairable name , same vairable name in .env , type 
+ #بيربط 3 حاجات  vairable name , same vairable name in .env , type 
 
      # for validation
      APP_NAME:str
