@@ -15,7 +15,7 @@ class Data_Controller(BaseController):
         if file.content_type not in self.app_settings.FILE_ALLOWED_TYPES :
             return False , ResponseSignal.FILE_TYPE_NOT_SUPPORTED.value
         if file.size> self.app_settings.FILE_MAX_SIZE * self.size_scale :
-            return False , ResponseSignal.file_size_exceeded.value
+            return False , ResponseSignal.FILE_SIZE_EXCEEDED.value
 
         return True , ResponseSignal.FILE_UPLOAD_SUCCESS.value
 
@@ -36,11 +36,11 @@ class Data_Controller(BaseController):
         
         new_file_path = os.path.join(project_path , random_key + "_" + cleaned_file_name)
 
-        while os.path.exists("new_file_path"):
+        while os.path.exists(new_file_path):
             random_key= self.generate_random_string()
             new_file_path = os.path.join(project_path , random_key + "_" + cleaned_file_name)
         
-        return new_file_path, random_key + "_" + cleaned_file_name
+        return new_file_path, random_key + "_" + cleaned_file_name  # random_key + "_" + cleaned_file_name دا اللي هيبقا موجود ف الداتا بيز
 
 
 

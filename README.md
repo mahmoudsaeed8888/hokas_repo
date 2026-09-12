@@ -39,6 +39,19 @@ $ cp .env.example .env
 ```
 set your environment variable  in the `.env` file . like `OPENAI_API_KEY` value
 
+
+## Run docker compose services 
+ ```bash
+ $ cd docker
+ $ sudo docker compose up -d
+ 
+ ``` 
+ - update .env with your credentials
+
+
+```bash 
+
+
 ## Run the FastAPI server 
 ```bash
 $ uvicron main:app --reload --host 0.0.0.0 --port 5000 

@@ -1,0 +1,23 @@
+services:
+  mongodb:
+    image: mongo:8.3.8-noble
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27007:27017" #ايه حاجه هتتبعت على بورت 27007اللي ف الجهاز حولها ل بورت 27017 جوا ال كونتنر 
+    volumes:
+      - mongodb_data:/data/db
+
+
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+
+    networks:
+      - backend
+
+networks:
+  backend:
+
+volumes:
+  mongodb_data:
