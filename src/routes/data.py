@@ -1,13 +1,17 @@
-from fastapi import FastAPI, APIRouter, Depends, UploadFile, File,status , Request 
+from fastapi import FastAPI, APIRouter, Depends, UploadFile, File, status, Request
 from fastapi.responses import JSONResponse
 from helpers import get_settings, Settings
 import os
 import aiofiles
-from controllers import Data_Controller, ProjectController , process_controller
+from controllers import Data_Controller, ProjectController, process_controller
 from models import ResponseSignal
 from models.ProjectDataModel import ProjectModel
-from models .ChunkDataModel import ChunkModel
-from models . db_schemes import DataChunk
+from models.ChunkDataModel import ChunkModel
+from models.AssetsDataModel import AssetsModel
+
+from models.db_schemes import DataChunk
+from models.db_schemes import Assets
+from models import Assets_Enums
 import logging
 
 from .schemes import processRequest
@@ -21,15 +25,13 @@ data_router = APIRouter(
 
 
 @data_router.post("/upload/{project_id}")
-async def upload_data(request: Request, project_id: str, file: UploadFile ,
+async def upload_data(request: Request, project_id: str, file: UploadFile,
                        app_settings: Settings = Depends(get_settings)):
 
-
     Project_Data_Model = await ProjectModel.create_instance(
-        db_client = request.app.db_client
+        db_client=request.app.db_client
     )
-    project = await Project_Data_Model.get_project_or_create_one(project_id = project_id)
-
+    project = await Project_Data_Model.get_project_or_create_one(project_id=project_id)
 
     data_controller = Data_Controller()
     is_valid, message = data_controller.validate_upload_File(file=file)
@@ -43,8 +45,8 @@ async def upload_data(request: Request, project_id: str, file: UploadFile ,
     project_dir_path = ProjectController().get_project_path(project_id=project_id)
 
     file_path, file_id = data_controller.generate_unique_filepath(
-        orig_file_name = file.filename,
-        project_id = project_id
+        orig_file_name=file.filename,
+        project_id=project_id
     )
 
     try:
@@ -58,82 +60,131 @@ async def upload_data(request: Request, project_id: str, file: UploadFile ,
             content=ResponseSignal.FILE_UPLOAD_FAILED.value
         )
 
+    # store the asset
+    Assets_model = await AssetsModel.create_instance(
+        db_client=request.app.db_client
+    )
+
+    Asset_Resources = Assets(
+        asset_project_id=project.id,
+        asset_type=Assets_Enums.FILE.value,
+        asset_name=file_id,
+        asset_size=os.path.getsize(file_path)
+    )
+
+    asset_record = await Assets_model.create_asset(asset=Asset_Resources)
+
     return JSONResponse(
         content={
             "signal": ResponseSignal.FILE_UPLOAD_SUCCESS.value,
-            "file_id": file_id ,
-            # "project_id": str(project.id) 
+            "file_id": str(asset_record.id),
         }
     )
 
 
 @data_router.post("/process/{project_id}")
-async def process_endpoint(request: Request , project_id: str, process_request: processRequest):
+async def process_endpoint(request: Request, project_id: str, process_request: processRequest):
 
-    file_id = process_request.file_id
     chunk_size = process_request.chunk_size
     overlap_size = process_request.overlap_size
     do_reset = process_request.do_reset
-    
+
     Project_Data_Model = await ProjectModel.create_instance(
-        db_client = request.app.db_client
+        db_client=request.app.db_client
     )
-
     chunk_Data_Model = await ChunkModel.create_instance(
-        db_client = request.app.db_client
+        db_client=request.app.db_client
     )
-    project = await Project_Data_Model.get_project_or_create_one(project_id = project_id)
-    if do_reset==1:
-       await chunk_Data_Model.delete_chunks_by_project_id(
-           project_id=project.id
-       )
- 
-
-
-    processController= process_controller(project_id = project_id)
-    
-    file_extension = processController.get_file_extension(file_id = file_id)
-    
-    file_content =processController.get_file_content(file_id = file_id)
-   
-
-    file_chunks = processController.process_file_content(
-      file_content = file_content, 
-      file_id = file_id , 
-      chunk_size = chunk_size ,
-      overlap_size = overlap_size
-
+    Assets_model = await AssetsModel.create_instance(
+    db_client=request.app.db_client
     )
 
-    if file_chunks is None or len(file_chunks)==0 :
-       return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content=ResponseSignal.PROCCESSING_FAILD.value
-    
-       )
-    #return file_chunks
-    file_chunks_record = [
-        DataChunk(
-            chunk_text = chunk.page_content,
-            chunk_metadata = chunk.metadata,
-            chunk_order = i+1,
-            chunk_project_id = project.id,
+    project = await Project_Data_Model.get_project_or_create_one(project_id=project_id)
+
+    if do_reset == 1:
+        await chunk_Data_Model.delete_chunks_by_project_id(
+            project_id=project.id
         )
-        for i,chunk in enumerate(file_chunks)
+
+    # Determine which files to process
+    project_file_ids = {}
+
+    if process_request.file_id:
+        asset_record = await Assets_model.get_one_assets(
+            asset_project_id = project.id,
+            asset_name = process_request.file_id
+        )
+        if asset_record is None :
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content=ResponseSignal.NO_FILE_ID_ERROR.value
+            )
+
+        project_file_ids = {
+            asset_record.id : asset_record.asset_name
+        }
+
+    else:
+
+
+        project_mdels = await Assets_model.get_all_project_assets(
+            asset_project_id=project.id,
+            asset_type=Assets_Enums.FILE.value
+        )
+
+        project_file_ids = {
+           record.id : record.asset_name
+            for record in project_mdels
+        }
+
+    if len(project_file_ids) == 0:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=ResponseSignal.NO_FILES_ERROR.value
+        )
+
+    processController = process_controller(project_id=project_id)
+    no_records = 0
+    no_files = 0
+
+    for id,file_id in project_file_ids.items():
+
+        file_content = processController.get_file_content(file_id=file_id)
+
+        if file_content is None:
+            logger.error(f"Error while processing file: {file_id}")
+            continue
+
+        file_chunks = processController.process_file_content(
+            file_content=file_content,
+            file_id=file_id,
+            chunk_size=chunk_size,
+            overlap_size=overlap_size
+        )
+
+        if file_chunks is None or len(file_chunks) == 0:
+            logger.error(f"Empty chunks for file: {file_id}")
+            continue
+
+        file_chunks_record = [
+            DataChunk(
+                chunk_text=chunk.page_content,
+                chunk_metadata=chunk.metadata,
+                chunk_order=i + 1,
+                chunk_project_id=project.id,
+                chunk_asset_id=id
+            )
+            for i, chunk in enumerate(file_chunks)
         ]
 
+        no_records += await chunk_Data_Model.insert_many_chunks(chunks=file_chunks_record)
+        no_files += 1
 
-    no_records = await chunk_Data_Model.insert_many_chunks(chunks=file_chunks_record)
+    # single response after processing ALL files, not just the first one
     return JSONResponse(
         content={
             "signal": ResponseSignal.PROCCESSING_SUCCESS.value,
-            "Inserted chunks ": no_records ,
+            "inserted_chunks": no_records,
+            "processed_files": no_files
         }
     )
-    
-
-
-
-
-
-    

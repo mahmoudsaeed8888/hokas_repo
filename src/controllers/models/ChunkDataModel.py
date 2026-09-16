@@ -54,7 +54,7 @@ class ChunkModel(BaseDataModel):
          ]
          await self.collection.bulk_write(operations)   # bulk_write  معناه انو هيبعت ال 100 انسرت وان مع بعض مش كل واحده لوحده يتحفظو على مونجو
  
-     return len(chunks)
+      return len(chunks)
 
      async def delete_chunks_by_project_id(self ,project_id : ObjectId) :
         result = await self.collection.delete_many({

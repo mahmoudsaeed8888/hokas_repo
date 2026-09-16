@@ -13,6 +13,8 @@ class process_controller(BaseController):
 
         self.project_id = project_id
         self.project_path = ProjectController().get_project_path(project_id=project_id)
+    
+
     def get_file_extension(self,file_id:str):
         return os.path.splitext(file_id)[-1]
 
@@ -23,7 +25,10 @@ class process_controller(BaseController):
             self.project_path,
             file_id
         )
-        
+
+        if not os.path.exists(file_path):
+           return None 
+
         if file_extension==processEnums.TXT.value :
            return TextLoader(file_path,encoding="utf-8")
 
@@ -34,7 +39,10 @@ class process_controller(BaseController):
 
     def get_file_content(self,file_id :str ):
         loader = self.get_file_loader(file_id=file_id)
-        return loader.load()
+        if loader : #(علشان لو الفايل مش موجود)
+            return loader.load()
+        else :
+            return None 
 
     def process_file_content(self , file_content:list , file_id : str , chunk_size:int=100 ,
     overlap_size : int=20) :

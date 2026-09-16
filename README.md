@@ -54,7 +54,7 @@ set your environment variable  in the `.env` file . like `OPENAI_API_KEY` value
 
 ## Run the FastAPI server 
 ```bash
-$ uvicron main:app --reload --host 0.0.0.0 --port 5000 
+$ uvicorn main:app --reload --host 0.0.0.0 --port 5000 
 ```
 ### POSTMAN COLLECTION 
 

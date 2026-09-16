@@ -20,7 +20,7 @@ class Project(BaseModel):
     def get_indexes(cls):
         return [
             {
-                "key":(["project_id",1]),
+                "key":[("project_id",1)],
                 "name" : "project_id_index_1",  
                 "unique" : True #project_id must be unique 
             }
