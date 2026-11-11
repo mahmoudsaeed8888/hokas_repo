@@ -63,7 +63,7 @@ class CoHereProvider(LLMInterface):
         
         return response.text
     
-    def embed_text(self, text: str, document_type: str = None):
+    def embedding_text(self , text : str , document_type : str = None):
         if not self.client:
             self.logger.error("CoHere client was not set")
             return None
