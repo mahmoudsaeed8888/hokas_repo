@@ -22,7 +22,7 @@ class Project(BaseModel):
             {
                 "key":[("project_id",1)],
                 "name" : "project_id_index_1",  
-                "unique" : True #project_id must be unique 
+                "unique" : True  #project_id must be unique 
             }
         ]
         

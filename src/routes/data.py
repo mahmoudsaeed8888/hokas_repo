@@ -28,10 +28,10 @@ data_router = APIRouter(
 async def upload_data(request: Request, project_id: str, file: UploadFile,
                        app_settings: Settings = Depends(get_settings)):
 
-    Project_Data_Model = await ProjectModel.create_instance(
+    Project_Model = await ProjectModel.create_instance(
         db_client=request.app.db_client
     )
-    project = await Project_Data_Model.get_project_or_create_one(project_id=project_id)
+    project = await Project_Model.get_project_or_create_one(project_id=project_id)
 
     data_controller = Data_Controller()
     is_valid, message = data_controller.validate_upload_File(file=file)
@@ -77,7 +77,8 @@ async def upload_data(request: Request, project_id: str, file: UploadFile,
     return JSONResponse(
         content={
             "signal": ResponseSignal.FILE_UPLOAD_SUCCESS.value,
-            "file_id": str(asset_record.id),
+            "file_id": file_id,
+            #"file_id": str(asset_record.id),
         }
     )
 
@@ -89,7 +90,7 @@ async def process_endpoint(request: Request, project_id: str, process_request: p
     overlap_size = process_request.overlap_size
     do_reset = process_request.do_reset
 
-    Project_Data_Model = await ProjectModel.create_instance(
+    Project_Model = await ProjectModel.create_instance(
         db_client=request.app.db_client
     )
     chunk_Data_Model = await ChunkModel.create_instance(
@@ -99,7 +100,7 @@ async def process_endpoint(request: Request, project_id: str, process_request: p
     db_client=request.app.db_client
     )
 
-    project = await Project_Data_Model.get_project_or_create_one(project_id=project_id)
+    project = await Project_Model.get_project_or_create_one(project_id=project_id)
 
     if do_reset == 1:
         await chunk_Data_Model.delete_chunks_by_project_id(
