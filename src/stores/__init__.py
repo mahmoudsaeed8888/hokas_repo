@@ -1,1 +1,2 @@
-from .LLM import LLMProviderFactory
+from .LLM.LLMProviderFactory import LLMProviderFactory
+from .VectorDB.VectorDBProviderFactory import VectorDBProviderFactory

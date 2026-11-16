@@ -22,6 +22,8 @@ class OpenAIProvider(LLMInterface):
         self.embedding_model_id = None
         self.embedding_size = None
 
+        self.enums = OpenAIEnums
+
         self.client = OpenAI(
             api_key = self.api_key,
             base_url = self.api_url
@@ -68,7 +70,7 @@ class OpenAIProvider(LLMInterface):
             self.logger.error("Error while generating text with OpenAI")
             return None
 
-        return response.choices[0].message["content"]
+        return response.choices[0].message.content
 
 
     def embed_text(self, text: str, document_type: str = None):
