@@ -41,6 +41,7 @@ class QdrantDBProvider(VectorDBInterface):
     def create_collection(self, collection_name: str, 
                                 embedding_size: int,
                                 do_reset: bool = False):
+        
         if do_reset:
             _ = self.delete_collection(collection_name=collection_name)
         
@@ -124,6 +125,8 @@ class QdrantDBProvider(VectorDBInterface):
                 return False
 
         return True
+
+
         
     def search_by_vector(self, collection_name: str, vector: list, limit: int = 5):
 
