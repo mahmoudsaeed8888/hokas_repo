@@ -69,27 +69,53 @@ class CoHereProvider(LLMInterface):
         if not self.client:
             self.logger.error("CoHere client was not set")
             return None
-        
+
         if not self.embedding_model_id:
             self.logger.error("Embedding model for CoHere was not set")
             return None
-        
-        input_type = CoHereEnums.DOCUMENT
-        if document_type == DocumentTypeEnum.QUERY:
-            input_type = CoHereEnums.QUERY
+
+        input_type = CoHereEnums.DOCUMENT.value
+        if document_type == DocumentTypeEnum.QUERY.value:
+            input_type = CoHereEnums.QUERY.value
 
         response = self.client.embed(
-            model = self.embedding_model_id,
-            texts = [self.process_text(text)],
-            input_type = input_type,
+            model=self.embedding_model_id,
+            texts=[self.process_text(text)],
+            input_type=input_type,
             embedding_types=['float'],
         )
 
         if not response or not response.embeddings or not response.embeddings.float:
             self.logger.error("Error while embedding text with CoHere")
             return None
-        
+
         return response.embeddings.float[0]
+
+    def embed_texts(self, texts: list, document_type: str = None):
+        if not self.client:
+            self.logger.error("CoHere client was not set")
+            return None
+
+        if not self.embedding_model_id:
+            self.logger.error("Embedding model for CoHere was not set")
+            return None
+
+        input_type = CoHereEnums.DOCUMENT.value
+        if document_type == DocumentTypeEnum.QUERY.value:
+            input_type = CoHereEnums.QUERY.value
+
+        response = self.client.embed(
+            model=self.embedding_model_id,
+            texts=[self.process_text(t) for t in texts],
+            input_type=input_type,
+            embedding_types=['float'],
+        )
+
+        if not response or not response.embeddings or not response.embeddings.float:
+            self.logger.error("Error while embedding texts with CoHere")
+            return None
+
+        return [list(v) for v in response.embeddings.float]
     
     def construct_prompt(self, prompt: str, role: str):
         return {

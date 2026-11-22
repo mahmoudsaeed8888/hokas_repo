@@ -90,23 +90,17 @@ async def process_endpoint(request: Request, project_id: str, process_request: p
     overlap_size = process_request.overlap_size
     do_reset = process_request.do_reset
 
-    Project_Model = await ProjectModel.create_instance(
-        db_client=request.app.db_client
-    )
-    chunk_Data_Model = await ChunkModel.create_instance(
-        db_client=request.app.db_client
-    )
-    Assets_model = await AssetsModel.create_instance(
-    db_client=request.app.db_client
-    )
+    Project_Model = await ProjectModel.create_instance( db_client=request.app.db_client )
+
+    chunk_Model = await ChunkModel.create_instance( db_client=request.app.db_client  )
+    
+    Assets_model = await AssetsModel.create_instance( db_client=request.app.db_client  )
 
     project = await Project_Model.get_project_or_create_one(project_id=project_id)
 
     if do_reset == 1:
-        await chunk_Data_Model.delete_chunks_by_project_id(
-            project_id=project.id
-        )
-
+       await chunk_Model.delete_chunks_by_project_id(project_id=project.id)
+  
     # Determine which files to process
     project_file_ids = {}
 
@@ -178,7 +172,7 @@ async def process_endpoint(request: Request, project_id: str, process_request: p
             for i, chunk in enumerate(file_chunks)
         ]
 
-        no_records += await chunk_Data_Model.insert_many_chunks(chunks=file_chunks_record)
+        no_records += await chunk_Model.insert_many_chunks(chunks=file_chunks_record)
         no_files += 1
 
     # single response after processing ALL files, not just the first one

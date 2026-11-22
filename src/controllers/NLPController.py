@@ -34,10 +34,10 @@ class nlp_controller(BaseController):
         self,
         project: project,
         chunks: List[DataChunk],
-        chunks_ids : List[int],
+        chunks_ids: List[int],
         do_reset: bool = False
     ):
-        # Create collection
+        # Create collection name
         collection_name = self.create_collection_name(
             project_id=project.project_id
         )
@@ -46,11 +46,17 @@ class nlp_controller(BaseController):
         texts = [c.chunk_text for c in chunks]
         metadata = [c.chunk_metadata for c in chunks]
 
-        # Generate embeddings
-        vectors = [
-            self.embedding_client.embed_text(text=text,document_type=DocumentTypeEnum.DOCUMENT.value)
-            for text in texts
-        ]
+        # Generate embeddings in batches (Cohere accepts up to 96 texts per call)
+        vectors = []
+        batch_size = 96
+        for i in range(0, len(texts), batch_size):
+            batch_vectors = self.embedding_client.embed_texts(
+                texts=texts[i:i + batch_size],
+                document_type=DocumentTypeEnum.DOCUMENT.value,
+            )
+            if batch_vectors is None:
+                return False
+            vectors.extend(batch_vectors)
 
         # Create collection
         _ = self.vectordb_client.create_collection(
@@ -65,7 +71,7 @@ class nlp_controller(BaseController):
             texts=texts,
             vectors=vectors,
             metadata=metadata,
-            record_ids = chunks_ids
+            record_ids=chunks_ids
         )
 
         return True
@@ -107,16 +113,16 @@ class nlp_controller(BaseController):
         #      document_prompt.append(self.template_parser.get("rag","document_prompt",{"doc_num" = idx+1 , "chunk_text"=doc.text, }))
 
         document_prompt = "\n".join([
-            
-            self.template_parser.get("rag","document_prompt",{
-                                "doc_num" : idx+1 , 
-                                "chunk_text":doc.text, 
-                                })
+         self.template_parser.get("rag", "document_prompt", {
+        "doc_num": idx + 1,
+        "chunk_text": doc.text,
+    })
+    for idx, doc in enumerate(Retrieved_documents)
+])
 
-           for idx, doc in enumerate(Retrieved_documents) 
-        ])
-
-        footer_prompt = self.template_parser.get("rag","footer_prompt",{})
+        footer_prompt = self.template_parser.get("rag","footer_prompt",{
+            "query": query
+        })
 
         chat_History= [
              self.generation_client.construct_prompt(
