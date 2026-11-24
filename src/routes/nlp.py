@@ -15,7 +15,7 @@ nlp_router = APIRouter(
 
 
 @nlp_router.post("/index/push/{project_id}")
-async def index_project(request: Request, project_id: str, push_request: PushRequest):
+async def index_project(request: Request, project_id: int, push_request: PushRequest):
 
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
@@ -42,8 +42,8 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
     is_first_page = True
 
     while True:
-        page_chunks = await chunk_model.get_project_chunks(
-            project_id=project.id,
+        page_chunks = await chunk_model.get_poject_chunks(
+            project_id=project.project_id,
             page_no=page_no,
         )
 
@@ -56,7 +56,7 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
         idx += len(page_chunks)
 
         # الـ reset يتعمل مرة واحدة بس في أول صفحة
-        is_inserted = controller.index_into_vector_db(
+        is_inserted = await controller.index_into_vector_db(
             project=project,
             chunks=page_chunks,
             chunks_ids=chunks_ids,
@@ -81,7 +81,7 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
 
 
 @nlp_router.get("/index/info/{project_id}")
-async def get_project_index_info(request: Request, project_id: str):
+async def get_project_index_info(request: Request, project_id: int):
 
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
@@ -93,7 +93,7 @@ async def get_project_index_info(request: Request, project_id: str):
         template_parser = request.app.template_parser,
     )
 
-    collection_info = controller.get_vector_collection_info(project=project)
+    collection_info = await controller.get_vector_collection_info(project=project)
 
     return JSONResponse(
         content={
@@ -104,7 +104,7 @@ async def get_project_index_info(request: Request, project_id: str):
 
 
 @nlp_router.post("/index/search/{project_id}")
-async def search_index(request: Request, project_id: str, search_request: SearchRequest):
+async def search_index(request: Request, project_id: int, search_request: SearchRequest):
 
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
@@ -116,7 +116,7 @@ async def search_index(request: Request, project_id: str, search_request: Search
         template_parser=request.app.template_parser
     )
 
-    results = controller.search_vector_db_collection(
+    results = await  controller.search_vector_db_collection(
         project=project,
         text=search_request.text,
         limit=search_request.limit,
@@ -136,7 +136,7 @@ async def search_index(request: Request, project_id: str, search_request: Search
     )
 
 @nlp_router.post("/index/answer/{project_id}")
-async def answer_rag(request: Request, project_id: str, search_request: SearchRequest):
+async def answer_rag(request: Request, project_id: int, search_request: SearchRequest):
     
     project_model = await ProjectModel.create_instance(
         db_client=request.app.db_client
@@ -155,7 +155,7 @@ async def answer_rag(request: Request, project_id: str, search_request: SearchRe
     )
 
 
-    answer, full_prompt, chat_history = controller.answer_rag_question(
+    answer, full_prompt, chat_history = await controller.answer_rag_question(
         project=project,
         query=search_request.text,
         limit=search_request.limit,

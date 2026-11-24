@@ -1,5 +1,5 @@
 from .BaseController import BaseController
-from models.db_schemes import project
+from  models.db_schemes import Project
 from models.db_schemes import DataChunk
 from typing import List
 from stores.LLM import DocumentTypeEnum
@@ -18,11 +18,11 @@ class nlp_controller(BaseController):
     def create_collection_name(self, project_id : str):
         return f"collection_name_{project_id}".strip()
 
-    def Reset_vector_db_collection (self,project: project):
+    async def Reset_vector_db_collection (self,project: Project):
         collection_name =  self.create_collection_name(project_id = project.project_id)
         return self.vectordb_client.delete_collection(collection_name = collection_name)
 
-    def get_vector_db_collection_info(self,project:project):
+    async def get_vector_db_collection_info(self,project:Project):
          collection_name =  self.create_collection_name(project_id = project.project_id)
          collection_info = self.vectordb_client.get_collection_info(collection_name=collection_name) 
          return json.loads(
@@ -30,9 +30,9 @@ class nlp_controller(BaseController):
          )
     
 
-    def index_into_vector_db(
+    async def index_into_vector_db(
         self,
-        project: project,
+        project: Project,
         chunks: List[DataChunk],
         chunks_ids: List[int],
         do_reset: bool = False
@@ -76,7 +76,7 @@ class nlp_controller(BaseController):
 
         return True
     
-    def search_vector_db_collection(self , project :project , text : str , limit :int = 5 ) :
+    async def search_vector_db_collection(self , project :Project , text : str , limit :int = 5 ) :
         
         # get collection name 
          collection_name =  self.create_collection_name(project_id = project.project_id)
@@ -94,7 +94,7 @@ class nlp_controller(BaseController):
 
          return Results
 
-    def answer_rag_question(self , project :project , query : str , limit :int = 5 ) :
+    async def answer_rag_question(self , project :Project , query : str , limit :int = 5 ) :
        
         answer , full_prompt , chat_History = None , None ,None 
 

@@ -2,17 +2,25 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from routes import base, data ,nlp
-from motor.motor_asyncio import AsyncIOMotorClient
+
 from helpers import get_settings
 from stores import LLMProviderFactory
 from stores import VectorDBProviderFactory 
 from stores.LLM.templates import TemplateParser
+
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
 app = FastAPI()
 
 async def startup_span():
     settings = get_settings()
-    app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URL)
-    app.db_client = app.mongo_conn[settings.MONGODB_DATABASE]
+
+    postgres_connection = f"postgresql+asyncpg://{settings.POSTGRES_USERNAME}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_MAIN_DATABASE}"
+    app.db_engine = create_async_engine(postgres_connection)
+
+    app.db_client = sessionmaker( app.db_engine, class_=AsyncSession , expire_on_commit=False  )
+
 
     llm_provider_factory = LLMProviderFactory(settings)
     VectorDB_Provider_Factory = VectorDBProviderFactory(settings)
@@ -26,11 +34,13 @@ async def startup_span():
     app.embedding_client = llm_provider_factory.create(provider=settings.EMBEDDING_BACKEND)
     app.embedding_client.set_embedding_model(model_id=settings.EMBEDDING_MODEL_ID,
                                              embedding_size=settings.EMBEDDING_MODEL_SIZE)
-    # vector db_client
+
+        # vector db_client
     app.vectordb_client = VectorDB_Provider_Factory.create(
-       provider =  settings.VECTOR_DB_BACKEND
+        provider=settings.VECTOR_DB_BACKEND,
+        db_client=app.db_client,
     )
-    app.vectordb_client.connect()
+    await app.vectordb_client.connect()
 
     #Template_parser 
     app.template_parser = TemplateParser(
@@ -39,8 +49,8 @@ async def startup_span():
         )
 
 async def shutdown_span():
-    app.mongo_conn.close()
-    app.vectordb_client.disconnect()
+    await app.vectordb_client.disconnect()
+    await app.db_engine.dispose()
 
 app.router.on_startup.append(startup_span)
 app.router.on_shutdown.append(shutdown_span)

@@ -1,3 +1,1 @@
-from .data_chunk import DataChunk,RetrievedDocument
-from .project import Project
-from .assets import Assets
+from models.db_schemes.RAG.schemes import Project, DataChunk, Asset, RetrievedDocument
