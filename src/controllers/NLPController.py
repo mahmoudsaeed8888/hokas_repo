@@ -20,11 +20,11 @@ class nlp_controller(BaseController):
 
     async def Reset_vector_db_collection (self,project: Project):
         collection_name =  self.create_collection_name(project_id = project.project_id)
-        return self.vectordb_client.delete_collection(collection_name = collection_name)
+        return await self.vectordb_client.delete_collection(collection_name = collection_name)
 
     async def get_vector_db_collection_info(self,project:Project):
          collection_name =  self.create_collection_name(project_id = project.project_id)
-         collection_info = self.vectordb_client.get_collection_info(collection_name=collection_name) 
+         collection_info = await self.vectordb_client.get_collection_info(collection_name=collection_name) 
          return json.loads(
              json.dumps(collection_info,default=lambda x : x.__dict__)
          )
@@ -59,14 +59,14 @@ class nlp_controller(BaseController):
             vectors.extend(batch_vectors)
 
         # Create collection
-        _ = self.vectordb_client.create_collection(
+        _ = await self.vectordb_client.create_collection(
             collection_name=collection_name,
             embedding_size=self.embedding_client.embedding_size,
             do_reset=do_reset
         )
 
         # Insert data into vector database
-        _ = self.vectordb_client.insert_many(
+        _ = await self.vectordb_client.insert_many(
             collection_name=collection_name,
             texts=texts,
             vectors=vectors,
@@ -88,7 +88,7 @@ class nlp_controller(BaseController):
              return False 
 
          # search 
-         Results = self.vectordb_client.search_by_vector(collection_name= collection_name , vector=vector , limit = limit )
+         Results = await self.vectordb_client.search_by_vector(collection_name= collection_name , vector=vector , limit = limit )
          if not Results :
              return False 
 
@@ -98,7 +98,7 @@ class nlp_controller(BaseController):
        
         answer , full_prompt , chat_History = None , None ,None 
 
-        Retrieved_documents = self.search_vector_db_collection(
+        Retrieved_documents = await self.search_vector_db_collection(
             project=project,
             text = query,
             limit = limit

@@ -12,6 +12,7 @@ system_prompt = Template("\n".join([
     "Be precise and concise in your response. Avoid unnecessary information.",
 ]))
 
+
 document_prompt = Template(
     "\n".join([
         "## Document No: $doc_num",

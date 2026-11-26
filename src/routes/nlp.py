@@ -93,7 +93,7 @@ async def get_project_index_info(request: Request, project_id: int):
         template_parser = request.app.template_parser,
     )
 
-    collection_info = await controller.get_vector_collection_info(project=project)
+    collection_info = await controller.get_vector_db_collection_info(project=project)
 
     return JSONResponse(
         content={
