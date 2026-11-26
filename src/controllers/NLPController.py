@@ -15,8 +15,9 @@ class nlp_controller(BaseController):
         self.generation_client = generation_client
         self.template_parser = template_parser
 
-    def create_collection_name(self, project_id : str):
-        return f"collection_name_{project_id}".strip()
+    def create_collection_name(self, project_id: str):
+       return f"collection_{self.embedding_client.embedding_size}_{project_id}".strip()
+ 
 
     async def Reset_vector_db_collection (self,project: Project):
         collection_name =  self.create_collection_name(project_id = project.project_id)
@@ -51,7 +52,7 @@ class nlp_controller(BaseController):
         batch_size = 96
         for i in range(0, len(texts), batch_size):
             batch_vectors = self.embedding_client.embed_texts(
-                texts=texts[i:i + batch_size],
+                text=texts[i:i + batch_size],
                 document_type=DocumentTypeEnum.DOCUMENT.value,
             )
             if batch_vectors is None:

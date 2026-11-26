@@ -20,9 +20,9 @@ class Data_Controller(BaseController):
         return True , ResponseSignal.FILE_UPLOAD_SUCCESS.value
 
 
-    def get_clean_file_name(self,orig_file_name : str) :
-        cleaned_file_name = re.sub(f'[^\w.]','',orig_file_name.strip())
-        cleaned_file_name = cleaned_file_name.replace(" ","_")
+    def get_clean_file_name(self, orig_file_name: str):
+        cleaned_file_name = orig_file_name.strip().replace(" ", "_")
+        cleaned_file_name = re.sub(r'[^\w.]', '', cleaned_file_name)
         return cleaned_file_name
 
         
