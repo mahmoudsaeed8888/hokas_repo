@@ -1,21 +1,25 @@
 import json
-from models.db_schemes.RAG.schemes.datachunk import RetrievedDocument
+from sqlalchemy import select, Table, Column, Integer, Text, MetaData
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import text as sql_text
+from pgvector.sqlalchemy import Vector
+
+from models.db_schemes.RAG.schemes.datachunk import RetrievedDocument
 from ..VectorDBEnums import DistanceMethodEnums
 
 
 class PGVectorProvider:
+
     def __init__(self, db_client, distance_method: str = "cosine"):
         self.db_client = db_client
+        self.distance_method = distance_method
+
         if distance_method == DistanceMethodEnums.DOT.value:
             self.ops = "vector_ip_ops"
-            self.op = "<#>"
-            self.score_expr = "-(vector <#> CAST(:vec AS vector))"
         else:
             self.ops = "vector_cosine_ops"
-            self.op = "<=>"
-            self.score_expr = "1 - (vector <=> CAST(:vec AS vector))"
 
+    # ---------- connection ----------
     async def connect(self):
         async with self.db_client() as session:
             async with session.begin():
@@ -24,6 +28,7 @@ class PGVectorProvider:
     async def disconnect(self):
         pass
 
+    # ---------- collections ----------
     async def is_collection_existed(self, collection_name: str) -> bool:
         async with self.db_client() as session:
             res = await session.execute(
@@ -32,13 +37,14 @@ class PGVectorProvider:
             )
             return res.scalar_one_or_none() is not None
 
-    async def delete_collection(self, collection_name: str):
+    async def delete_collection(self, collection_name: str) -> bool:
         async with self.db_client() as session:
             async with session.begin():
                 await session.execute(sql_text(f'DROP TABLE IF EXISTS "{collection_name}"'))
         return True
 
-    async def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
+    async def create_collection(self, collection_name: str, embedding_size: int,
+                                do_reset: bool = False) -> bool:
         if do_reset:
             await self.delete_collection(collection_name)
 
@@ -62,13 +68,16 @@ class PGVectorProvider:
                 '''))
         return True
 
-    async def get_collection_info(self, collection_name: str):
+    async def get_collection_info(self, collection_name: str) -> dict:
         async with self.db_client() as session:
             res = await session.execute(sql_text(f'SELECT COUNT(*) FROM "{collection_name}"'))
             return {"table_name": collection_name, "records_count": res.scalar_one()}
 
-    async def insert_many(self, collection_name, texts, vectors, metadata=None,
-                          record_ids=None, batch_size: int = 50):
+    # ---------- insert ----------
+    async def insert_many(self, collection_name: str, texts: list, vectors: list,
+                          metadata: list | None = None, record_ids: list | None = None,
+                          batch_size: int = 50) -> bool:
+
         metadata = metadata or [None] * len(texts)
         record_ids = record_ids or [None] * len(texts)
 
@@ -77,7 +86,7 @@ class PGVectorProvider:
                 "chunk_id": record_ids[i],
                 "chunk_text": texts[i],
                 "metadata": json.dumps(metadata[i]) if metadata[i] is not None else None,
-                "vector": "[" + ",".join(str(x) for x in vectors[i]) + "]",
+                "vector": "[" + ",".join(str(float(x)) for x in vectors[i]) + "]",
             }
             for i in range(len(texts))
         ]
@@ -93,16 +102,49 @@ class PGVectorProvider:
                     await session.execute(stmt, rows[i:i + batch_size])
         return True
 
-    async def search_by_vector(self, collection_name: str, vector: list, limit: int = 5):
-        vec = "[" + ",".join(str(x) for x in vector) + "]"
+    # ---------- search ----------
+    def _get_table(self, collection_name: str, embedding_size: int) -> Table:
+        return Table(
+            collection_name,
+            MetaData(),
+            Column("id", Integer, primary_key=True),
+            Column("chunk_id", Integer),
+            Column("chunk_text", Text),
+            Column("metadata", JSONB),
+            Column("vector", Vector(embedding_size)),
+        )
+
+    async def search_by_vector(self, collection_name: str, vector: list,
+                               limit: int = 5, score_threshold: float | None = None):
+
+        table = self._get_table(collection_name, embedding_size=len(vector))
+
+        if self.distance_method == DistanceMethodEnums.DOT.value:
+            distance = table.c.vector.max_inner_product(vector)   # أقل = أقرب
+            score = (-distance).label("score")
+        else:
+            distance = table.c.vector.cosine_distance(vector)
+            score = (1 - distance).label("score")
+
+        stmt = (
+            select(table.c.chunk_id, table.c.chunk_text, table.c.metadata, score)
+            .order_by(distance)
+            .limit(limit)
+        )
+
+        if score_threshold is not None:
+            stmt = stmt.where(score >= score_threshold) if False else stmt.where(
+                (1 - distance) >= score_threshold
+            )
+
         async with self.db_client() as session:
-            res = await session.execute(sql_text(f'''
-                SELECT chunk_text, metadata, {self.score_expr} AS score
-                FROM "{collection_name}"
-                ORDER BY vector {self.op} CAST(:vec AS vector)
-                LIMIT :limit
-            '''), {"vec": vec, "limit": limit})
+            res = await session.execute(stmt)
             return [
-                RetrievedDocument(text=r.chunk_text, metadata=r.metadata, score=float(r.score))
+                RetrievedDocument(
+                    chunk_id=r.chunk_id,
+                    text=r.chunk_text,
+                    score=float(r.score),
+                    metadata=r.metadata,
+                )
                 for r in res.fetchall()
             ]

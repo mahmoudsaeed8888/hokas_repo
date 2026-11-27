@@ -44,28 +44,61 @@ class process_controller(BaseController):
         else :
             return None 
 
-    def process_file_content(self , file_content:list , file_id : str , chunk_size:int=100 ,
-    overlap_size : int=20) :
-         
-         text_splitter =RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=overlap_size,
-            length_function=len,
-         )
-         
-         file_content_texts = [
-            rec.page_content
-            for rec in file_content
-         ]
-         # List Comprehension
+   # def process_file_content(self , file_content:list , file_id : str , chunk_size:int=100 ,
+   # overlap_size : int=20) :
+   #      
+   #      text_splitter =RecursiveCharacterTextSplitter(
+   #         chunk_size=chunk_size,
+   #         chunk_overlap=overlap_size,
+   #         length_function=len,
+   #      )
+   #      
+   #      file_content_texts = [
+   #         rec.page_content
+   #         for rec in file_content
+   #      ]
+   #      # List Comprehension
+#
+   #      file_content_metadata = [
+   #         rec.metadata
+   #         for rec in file_content
+   #      ]
+#
+   #      chunks = text_splitter.create_documents(
+   #         file_content_texts, 
+   #         metadatas =file_content_metadata
+   #      )
+   #      return chunks 
 
-         file_content_metadata = [
-            rec.metadata
-            for rec in file_content
-         ]
+    def process_file_content(self, file_content: list, file_id: str,
+                         parent_size: int = 1500, parent_overlap: int = 0,
+                         child_size: int = 300, child_overlap: int = 50):
 
-         chunks = text_splitter.create_documents(
-            file_content_texts, 
-            metadatas =file_content_metadata
-         )
-         return chunks 
+          parent_splitter = RecursiveCharacterTextSplitter(
+              chunk_size=parent_size,
+              chunk_overlap=parent_overlap,
+              length_function=len,
+          )
+          child_splitter = RecursiveCharacterTextSplitter(
+              chunk_size=child_size,
+              chunk_overlap=child_overlap,
+              length_function=len,
+          )
+
+          texts = [rec.page_content for rec in file_content]
+          metadatas = [rec.metadata for rec in file_content]
+
+          # 1) parents
+          parents = parent_splitter.create_documents(texts, metadatas=metadatas)
+
+          # 2) children لكل parent
+          children = []
+          for parent_idx, parent in enumerate(parents):
+              parent.metadata["parent_idx"] = parent_idx
+              kids = child_splitter.create_documents(
+                  [parent.page_content],
+                  metadatas=[{**parent.metadata, "parent_idx": parent_idx}],
+              )
+              children.extend(kids)
+
+          return parents, children

@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 app = FastAPI()
 
+
 async def startup_span():
     settings = get_settings()
 
@@ -32,8 +33,10 @@ async def startup_span():
 
     # embedding client
     app.embedding_client = llm_provider_factory.create(provider=settings.EMBEDDING_BACKEND)
-    app.embedding_client.set_embedding_model(model_id=settings.EMBEDDING_MODEL_ID,
+
+    app.embedding_client.set_embedding_model( model_id=settings.EMBEDDING_MODEL_ID, 
                                              embedding_size=settings.EMBEDDING_MODEL_SIZE)
+    
 
         # vector db_client
     app.vectordb_client = VectorDB_Provider_Factory.create(

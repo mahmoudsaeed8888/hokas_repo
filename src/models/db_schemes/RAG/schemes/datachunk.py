@@ -1,9 +1,11 @@
 from .Rag_base import SQLAlchemyBase
-from sqlalchemy import Column, Integer, DateTime, func, String, ForeignKey
+from sqlalchemy import Column, Integer, DateTime, func, String, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy import Index
 from pydantic import BaseModel
+from typing import Optional
+
 import uuid
 
 class DataChunk(SQLAlchemyBase):
@@ -20,6 +22,9 @@ class DataChunk(SQLAlchemyBase):
     chunk_project_id = Column(Integer , ForeignKey("projects.project_id"), nullable=False )
     chunk_asset_id = Column(Integer , ForeignKey("assets.asset_id"), nullable=False )
 
+    chunk_parent_id = Column(Integer, ForeignKey("chunks.chunk_id"), nullable=True) # تبع بيرنت ايه 
+    chunk_is_parent = Column(Boolean, default=False, nullable=False) #نوعي parent ولا child؟
+
     project  = relationship("Project", back_populates="chunks")
     asset  = relationship("Asset", back_populates="chunks")
 
@@ -31,9 +36,12 @@ class DataChunk(SQLAlchemyBase):
           Index('ix_chunk_asset_id',chunk_asset_id)
      )
 
+    
+
 class RetrievedDocument(BaseModel):
         text :str 
         score :float
+        metadata: Optional[dict] = None
 
 
 

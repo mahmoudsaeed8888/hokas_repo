@@ -1,2 +1,2 @@
 from .LLMProviderFactory import LLMProviderFactory
-from . LLMEnums import LLMEnums , OpenAIEnums , CoHereEnums , DocumentTypeEnum
+from . LLMEnums import LLMEnums , OpenAIEnums , CoHereEnums , DocumentTypeEnum ,NileChatEnums ,BGEM3Enums

@@ -21,7 +21,6 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
     chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
 
     project = await project_model.get_project_or_create_one(project_id=project_id)
-    
 
     if not project:
         return JSONResponse(
@@ -33,18 +32,18 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
         generation_client=request.app.generation_client,
         embedding_client=request.app.embedding_client,
         vectordb_client=request.app.vectordb_client,
-        template_parser = request.app.template_parser,
+        template_parser=request.app.template_parser,
     )
 
     page_no = 1
     inserted_items_count = 0
-    idx = 0
     is_first_page = True
 
     while True:
         page_chunks = await chunk_model.get_poject_chunks(
             project_id=project.project_id,
             page_no=page_no,
+            is_parent=False,         # embedding for children only not parent 
         )
 
         if not page_chunks:
@@ -52,10 +51,9 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
 
         page_no += 1
 
-        chunks_ids = list(range(idx, idx + len(page_chunks)))
-        idx += len(page_chunks)
+        chunks_ids = [c.chunk_id for c in page_chunks]
 
-        # الـ reset يتعمل مرة واحدة بس في أول صفحة
+       
         is_inserted = await controller.index_into_vector_db(
             project=project,
             chunks=page_chunks,
@@ -129,11 +127,14 @@ async def search_index(request: Request, project_id: int, search_request: Search
         )
 
     return JSONResponse(
-        content={
-            "Signal": ResponseSignal.VECTORDB_SEARCH_SUCCESS.value,
-            "Results": [result.dict() for result in results]
-        }
-    )
+    content={
+        "Signal": ResponseSignal.VECTORDB_SEARCH_SUCCESS.value,
+        "Results": [
+            {"text": result.text, "score": result.score}
+            for result in results
+        ]
+    }
+)
 
 @nlp_router.post("/index/answer/{project_id}")
 async def answer_rag(request: Request, project_id: int, search_request: SearchRequest):

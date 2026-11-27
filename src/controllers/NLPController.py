@@ -37,6 +37,7 @@ class nlp_controller(BaseController):
         chunks: List[DataChunk],
         chunks_ids: List[int],
         do_reset: bool = False
+
     ):
         # Create collection name
         collection_name = self.create_collection_name(
@@ -45,7 +46,10 @@ class nlp_controller(BaseController):
 
         # Manage items
         texts = [c.chunk_text for c in chunks]
-        metadata = [c.chunk_metadata for c in chunks]
+
+        metadata = [
+                   {**(c.chunk_metadata or {}), "chunk_parent_id": c.chunk_parent_id}
+                   for c in chunks ]
 
         # Generate embeddings in batches (Cohere accepts up to 96 texts per call)
         vectors = []
@@ -56,8 +60,9 @@ class nlp_controller(BaseController):
                 document_type=DocumentTypeEnum.DOCUMENT.value,
             )
             if batch_vectors is None:
-                return False
-            vectors.extend(batch_vectors)
+                raise RuntimeError(
+                    f"Embedding failed for texts {i} to {i + batch_size} in this page"
+                )
 
         # Create collection
         _ = await self.vectordb_client.create_collection(
@@ -67,15 +72,13 @@ class nlp_controller(BaseController):
         )
 
         # Insert data into vector database
-        _ = await self.vectordb_client.insert_many(
+        return await self.vectordb_client.insert_many(
             collection_name=collection_name,
             texts=texts,
             vectors=vectors,
             metadata=metadata,
             record_ids=chunks_ids
-        )
-
-        return True
+    )
     
     async def search_vector_db_collection(self , project :Project , text : str , limit :int = 5 ) :
         

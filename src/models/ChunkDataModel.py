@@ -36,15 +36,17 @@ class ChunkModel(BaseDataModel):
             chunk = result.scalar_one_or_none()
         return chunk
 
-    async def insert_many_chunks(self, chunks: list, batch_size: int=100):
-
+    
+    async def insert_many_chunks(self, chunks: list, batch_size: int = 100):
+    
         async with self.db_client() as session:
             async with session.begin():
                 for i in range(0, len(chunks), batch_size):
-                    batch = chunks[i:i+batch_size]
-                    session.add_all(batch)
-            await session.commit()
-        return len(chunks)
+                    session.add_all(chunks[i:i + batch_size])
+                await session.flush()      # بيملّي chunk_id في كل object
+    
+        return chunks                   
+
 
     async def delete_chunks_by_project_id(self, project_id: ObjectId):
         async with self.db_client() as session:
@@ -53,9 +55,34 @@ class ChunkModel(BaseDataModel):
             await session.commit()
         return result.rowcount
 
-    async def get_poject_chunks(self, project_id: ObjectId, page_no: int=1, page_size: int=50):
+    async def get_poject_chunks(self, project_id: int, page_no: int = 1,
+                                page_size: int = 50, is_parent: bool | None = None):
         async with self.db_client() as session:
-            stmt = select(DataChunk).where(DataChunk.chunk_project_id == project_id).offset((page_no - 1) * page_size).limit(page_size)
+            stmt = select(DataChunk).where(DataChunk.chunk_project_id == project_id)
+
+            if is_parent is not None:
+                stmt = stmt.where(DataChunk.chunk_is_parent == is_parent)
+
+            stmt = (
+                stmt.order_by(DataChunk.chunk_id)
+                .offset((page_no - 1) * page_size)
+                .limit(page_size)
+            )
+
             result = await session.execute(stmt)
-            records = result.scalars().all()
-        return records
+            return result.scalars().all()
+
+    async def get_chunks_by_ids(self, chunk_ids: list[int]):
+        if not chunk_ids:
+            return []
+
+        async with self.db_client() as session:
+            stmt = select(DataChunk).where(DataChunk.chunk_id.in_(chunk_ids))
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+
+        by_id = {r.chunk_id: r for r in rows}
+        return [by_id[i] for i in chunk_ids if i in by_id]
+
+
+     
