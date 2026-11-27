@@ -15,9 +15,9 @@ class PGVectorProvider:
         self.distance_method = distance_method
 
         if distance_method == DistanceMethodEnums.DOT.value:
-            self.ops = "vector_ip_ops"
+            self.ops = DistanceMethodEnums.VECTOR_IB.value
         else:
-            self.ops = "vector_cosine_ops"
+            self.ops = DistanceMethodEnums.VECTOR_CONSINE.value
 
     # ---------- connection ----------
     async def connect(self):
@@ -103,7 +103,7 @@ class PGVectorProvider:
         return True
 
     # ---------- search ----------
-    def _get_table(self, collection_name: str, embedding_size: int) -> Table:
+    def get_table(self, collection_name: str, embedding_size: int) -> Table:
         return Table(
             collection_name,
             MetaData(),
@@ -114,10 +114,28 @@ class PGVectorProvider:
             Column("vector", Vector(embedding_size)),
         )
 
+    async def get_all_chunks(self, collection_name: str):
+        stmt = sql_text(f'''
+            SELECT chunk_id, chunk_text, metadata
+            FROM "{collection_name}"
+        ''')
+
+        async with self.db_client() as session:
+            res = await session.execute(stmt)
+            return [
+                RetrievedDocument(
+                    chunk_id=r.chunk_id,
+                    text=r.chunk_text,
+                    score=0.0,
+                    metadata=r.metadata,
+                )
+                for r in res.fetchall()
+            ]
+
     async def search_by_vector(self, collection_name: str, vector: list,
                                limit: int = 5, score_threshold: float | None = None):
 
-        table = self._get_table(collection_name, embedding_size=len(vector))
+        table = self.get_table(collection_name, embedding_size=len(vector))
 
         if self.distance_method == DistanceMethodEnums.DOT.value:
             distance = table.c.vector.max_inner_product(vector)   # أقل = أقرب
@@ -133,9 +151,10 @@ class PGVectorProvider:
         )
 
         if score_threshold is not None:
-            stmt = stmt.where(score >= score_threshold) if False else stmt.where(
-                (1 - distance) >= score_threshold
-            )
+            if self.distance_method == DistanceMethodEnums.DOT.value:
+                stmt = stmt.where(-distance >= score_threshold)  # DOT 
+            else:
+                stmt = stmt.where((1 - distance) >= score_threshold)  # COSINE 
 
         async with self.db_client() as session:
             res = await session.execute(stmt)

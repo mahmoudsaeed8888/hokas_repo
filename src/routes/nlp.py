@@ -40,11 +40,13 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
     is_first_page = True
 
     while True:
+        print("project_id:", project.project_id)
         page_chunks = await chunk_model.get_poject_chunks(
             project_id=project.project_id,
             page_no=page_no,
             is_parent=False,         # embedding for children only not parent 
         )
+        print("page", page_no, "children:", len(page_chunks))
 
         if not page_chunks:
             break
@@ -76,6 +78,7 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
             "Inserted_items_count": inserted_items_count,
         }
     )
+
 
 
 @nlp_router.get("/index/info/{project_id}")
@@ -130,7 +133,7 @@ async def search_index(request: Request, project_id: int, search_request: Search
     content={
         "Signal": ResponseSignal.VECTORDB_SEARCH_SUCCESS.value,
         "Results": [
-            {"text": result.text, "score": result.score}
+            {"text": result["text"], "score": result["score"]}
             for result in results
         ]
     }
@@ -147,19 +150,21 @@ async def answer_rag(request: Request, project_id: int, search_request: SearchRe
         project_id=project_id
     )
 
+
+    chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
+
     controller = nlp_controller(
         generation_client=request.app.generation_client,
         embedding_client=request.app.embedding_client,
         vectordb_client=request.app.vectordb_client,
-        template_parser = request.app.template_parser,
-        
+        template_parser=request.app.template_parser,
     )
-
 
     answer, full_prompt, chat_history = await controller.answer_rag_question(
         project=project,
         query=search_request.text,
         limit=search_request.limit,
+        chunk_model=chunk_model,
     )
 
     if not answer:

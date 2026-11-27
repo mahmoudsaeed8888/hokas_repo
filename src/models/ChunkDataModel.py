@@ -12,7 +12,6 @@ class ChunkModel(BaseDataModel):
 
     def __init__(self, db_client: object):
         super().__init__(db_client=db_client)
-        self.collection = self.db_client = db_client
 
 
     @classmethod
@@ -64,13 +63,19 @@ class ChunkModel(BaseDataModel):
                 stmt = stmt.where(DataChunk.chunk_is_parent == is_parent)
 
             stmt = (
-                stmt.order_by(DataChunk.chunk_id)
+                stmt.order_by(
+                    DataChunk.chunk_asset_id,
+                    DataChunk.chunk_is_parent.desc(),
+                    DataChunk.chunk_parent_id,
+                    DataChunk.chunk_order,
+                    DataChunk.chunk_id,
+                )
                 .offset((page_no - 1) * page_size)
                 .limit(page_size)
             )
 
-            result = await session.execute(stmt)
-            return result.scalars().all()
+            result = await session.execute(stmt)      # <-- ناقص
+            return result.scalars().all()             # <-- ناقص
 
     async def get_chunks_by_ids(self, chunk_ids: list[int]):
         if not chunk_ids:

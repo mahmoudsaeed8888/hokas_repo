@@ -93,19 +93,19 @@ class CoHereProvider(LLMInterface):
 
         return response.embeddings.float[0]
 
-    def embed_texts(self, text, document_type: str = None, batch_size: int = 32):
+    def embed_texts(self, text, document_type: str = None, batch_size: int = 96):
         if isinstance(text, str):
             text = [text]
-    
-        input_type = CoHereEnums.DOCUMENT
-        if document_type == DocumentTypeEnum.QUERY:
-            input_type = CoHereEnums.QUERY
-    
+
+        input_type = CoHereEnums.DOCUMENT.value
+        if document_type == DocumentTypeEnum.QUERY.value:
+            input_type = CoHereEnums.QUERY.value
+
         all_embeddings = []
         for i in range(0, len(text), batch_size):
             batch = [self.process_text(t) for t in text[i:i + batch_size]]
-    
-            for attempt in range(5):
+
+            for attempt in range(3):
                 try:
                     response = self.client.embed(
                         model=self.embedding_model_id,
@@ -114,18 +114,19 @@ class CoHereProvider(LLMInterface):
                         embedding_types=['float'],
                     )
                     break
-                except cohere.errors.TooManyRequestsError:
-                    time.sleep(15 * (attempt + 1))  # استنى وزوّد الوقت كل محاولة
+                except cohere.errors.TooManyRequestsError as e:
+                    self.logger.warning(f"CoHere 429 (attempt {attempt + 1}): {e}")
+                    time.sleep(10 * (attempt + 1))
             else:
                 self.logger.error("CoHere rate limit: gave up after retries")
                 return None
-    
+
             all_embeddings.extend(response.embeddings.float)
-    
+
         return all_embeddings
-    
+
     def construct_prompt(self, prompt: str, role: str):
-        return {
+            return {
             "role": role,
             "text": prompt
         }

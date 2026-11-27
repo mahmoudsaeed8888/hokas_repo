@@ -39,9 +39,10 @@ class DataChunk(SQLAlchemyBase):
     
 
 class RetrievedDocument(BaseModel):
-        text :str 
-        score :float
-        metadata: Optional[dict] = None
+     chunk_id: Optional[int] = None
+     text: str
+     score: float
+     metadata: Optional[dict] = None
 
 
 
